@@ -64,7 +64,8 @@ params:
     truncate_grads: True
     e_clip: 0.2
     horizon_length: 16
-    minibatch_size: 16384
+    # minibatch_size: 16384
+    minibatch_size: 2 #32
     mini_epochs: 4
     critic_coef: 4
     clip_value: True
@@ -72,7 +73,8 @@ params:
     bounds_loss_coef: 0.0001
 
     central_value_config:
-      minibatch_size: 32864
+      # minibatch_size: 32864
+      minibatch_size: 4
       mini_epochs: 4
       learning_rate: 5e-4
       lr_schedule: adaptive

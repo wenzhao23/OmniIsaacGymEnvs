@@ -48,7 +48,6 @@ class ShadowHandTask(InHandManipulationTask):
         env,
         offset=None
     ) -> None:
-        self._prim_path_override = "/World/kuka_allegro"
         self._sim_config = sim_config
         self._cfg = sim_config.config
         self._task_cfg = sim_config.task_config
@@ -83,7 +82,7 @@ class ShadowHandTask(InHandManipulationTask):
             num_states = 187
 
         self._num_observations = self.num_obs_dict[self.obs_type]
-        self._num_actions = 16
+        self._num_actions = 20
         self._num_states = num_states
 
         InHandManipulationTask.__init__(self, name=name, env=env)
@@ -94,7 +93,7 @@ class ShadowHandTask(InHandManipulationTask):
         hand_start_orientation = torch.tensor([0.0, 0.0, -0.70711, 0.70711], device=self.device)
 
         shadow_hand = ShadowHand(
-            prim_path=self._prim_path_override or self.default_zero_env_path + "/shadow_hand", 
+            prim_path=self.default_zero_env_path + "/shadow_hand", 
             name="shadow_hand",
             translation=hand_start_translation, 
             orientation=hand_start_orientation,
@@ -110,8 +109,8 @@ class ShadowHandTask(InHandManipulationTask):
         return hand_start_translation, pose_dy, pose_dz
     
     def get_hand_view(self, scene):
-        hand_view = ShadowHandView(prim_paths_expr="/World/kuka_allegro/kuka_allegro", name="shadow_hand_view")
-        # scene.add(hand_view._fingers)
+        hand_view = ShadowHandView(prim_paths_expr="/World/envs/.*/shadow_hand", name="shadow_hand_view")
+        scene.add(hand_view._fingers)
         return hand_view
 
     def get_observations(self):

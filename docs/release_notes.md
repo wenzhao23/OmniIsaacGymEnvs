@@ -7,10 +7,9 @@ Release Notes
 Additions
 ---------
 - Update to Viewport 2.0
-- Additional example: FactoryTaskNutBoltPick
 - Allow for runtime mass randomization on GPU pipeline
 - Add runtime mass randomization to ShadowHand environments
-- Introduce disable_contact_processing simulation parameter for faster contact processing
+- Introduce `disable_contact_processing` simulation parameter for faster contact processing
 - Use physics replication for cloning by default for faster load time
 
 Changes

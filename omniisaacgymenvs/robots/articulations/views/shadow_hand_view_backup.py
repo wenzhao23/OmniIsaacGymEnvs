@@ -40,11 +40,14 @@ class ShadowHandView(ArticulationView):
         prim_paths_expr: str,
         name: Optional[str] = "ShadowHandView",
     ) -> None:
+
         super().__init__(
             prim_paths_expr=prim_paths_expr,
             name=name,
             reset_xform_properties=False
         )
+
+        self._fingers = RigidPrimView(prim_paths_expr="/World/envs/.*/shadow_hand/robot0.*distal", name="finger_view", reset_xform_properties=False)
 
     @property
     def actuated_dof_indices(self):
@@ -53,16 +56,18 @@ class ShadowHandView(ArticulationView):
     def initialize(self, physics_sim_view):
         super().initialize(physics_sim_view)
 
-        self.actuated_joint_names = ['index_joint_0', 'index_joint_1', 
-                                     'index_joint_2', 'index_joint_3', 'middle_joint_0', 
-                                     'middle_joint_1', 'middle_joint_2', 'middle_joint_3', 
-                                     'ring_joint_0', 'ring_joint_1', 'ring_joint_2', 'ring_joint_3', 
-                                     'thumb_joint_0', 'thumb_joint_1', 'thumb_joint_2', 'thumb_joint_3'] 
+        self.actuated_joint_names = ['robot0_WRJ1', 'robot0_WRJ0', 
+                                     'robot0_FFJ3', 'robot0_FFJ2', 'robot0_FFJ1', 
+                                     'robot0_MFJ3', 'robot0_MFJ2', 'robot0_MFJ1', 
+                                     'robot0_RFJ3', 'robot0_RFJ2', 'robot0_RFJ1', 'robot0_LFJ4', 
+                                     'robot0_LFJ3', 'robot0_LFJ2', 'robot0_LFJ1', 
+                                     'robot0_THJ4', 'robot0_THJ3', 'robot0_THJ2', 'robot0_THJ1', 'robot0_THJ0',
+                                    ]
         self._actuated_dof_indices = list()
         for joint_name in self.actuated_joint_names:
             self._actuated_dof_indices.append(self.get_dof_index(joint_name))
         self._actuated_dof_indices.sort()
 
-        # limit_stiffness = torch.tensor([30.0] * self.num_fixed_tendons, device=self._device)
-        # damping = torch.tensor([0.1] * self.num_fixed_tendons, device=self._device)
-        # self.set_fixed_tendon_properties(dampings=damping, limit_stiffnesses=limit_stiffness)
+        limit_stiffness = torch.tensor([30.0] * self.num_fixed_tendons, device=self._device)
+        damping = torch.tensor([0.1] * self.num_fixed_tendons, device=self._device)
+        self.set_fixed_tendon_properties(dampings=damping, limit_stiffnesses=limit_stiffness)

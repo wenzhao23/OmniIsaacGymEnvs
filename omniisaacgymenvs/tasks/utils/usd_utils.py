@@ -33,7 +33,6 @@ from pxr import UsdPhysics, UsdLux
 
 def set_drive_type(prim_path, drive_type):
     joint_prim = get_prim_at_path(prim_path)
-
     # set drive type ("angular" or "linear")
     drive = UsdPhysics.DriveAPI.Apply(joint_prim, drive_type)
     return drive

@@ -32,7 +32,7 @@ import numpy as np
 import torch
 from omni.isaac.core.robots.robot import Robot
 from omni.isaac.core.utils.nucleus import get_assets_root_path
-from omni.isaac.core.utils.stage import add_reference_to_stage
+from omni.isaac.core.utils.stage import add_reference_to_stage, get_current_stage
 from omniisaacgymenvs.tasks.utils.usd_utils import set_drive
 
 import carb
@@ -52,17 +52,24 @@ class ShadowHand(Robot):
         self._usd_path = usd_path
         self._name = name
 
-        if self._usd_path is None:
-            assets_root_path = get_assets_root_path()
-            if assets_root_path is None:
-                carb.log_error("Could not find Isaac Sim assets folder")
-            self._usd_path = assets_root_path + "/Isaac/Robots/ShadowHand/shadow_hand_instanceable.usd"
-
+        assets_root_path = get_assets_root_path()
+        assets_user_path = assets_root_path + "/../../../../my_data"
+        self._usd_path = assets_user_path + "/shadow_picking.usd"
+        print('!' * 50)
+        print(self._usd_path)
         self._position = torch.tensor([0.0, 0.0, 0.5]) if translation is None else translation
         self._orientation = torch.tensor([1.0, 0.0, 0.0, 0.0]) if orientation is None else orientation
             
         add_reference_to_stage(self._usd_path, prim_path)
-        
+
+        # stage = get_current_stage()
+        # prims = [stage.GetPrimAtPath(prim_path)]
+        # while len(prims) > 0:
+        #     prim = prims.pop(0)
+        #     print(prim)
+        #     children_prims = prim.GetChildren()
+        #     prims = prims + children_prims
+
         super().__init__(
             prim_path=prim_path,
             name=name,
@@ -80,31 +87,44 @@ class ShadowHand(Robot):
 
     def set_motor_control_mode(self, stage, shadow_hand_path):
         joints_config = {
-                         "robot0_WRJ1": {"stiffness": 5, "damping": 0.5, "max_force": 4.785},
-                         "robot0_WRJ0": {"stiffness": 5, "damping": 0.5, "max_force": 2.175},
-                         "robot0_FFJ3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9},
-                         "robot0_FFJ2": {"stiffness": 1, "damping": 0.1, "max_force": 0.9},
-                         "robot0_FFJ1": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245},
-                         "robot0_MFJ3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9},
-                         "robot0_MFJ2": {"stiffness": 1, "damping": 0.1, "max_force": 0.9},
-                         "robot0_MFJ1": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245},
-                         "robot0_RFJ3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9},
-                         "robot0_RFJ2": {"stiffness": 1, "damping": 0.1, "max_force": 0.9},
-                         "robot0_RFJ1": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245},
-                         "robot0_LFJ4": {"stiffness": 1, "damping": 0.1, "max_force": 0.9},
-                         "robot0_LFJ3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9},
-                         "robot0_LFJ2": {"stiffness": 1, "damping": 0.1, "max_force": 0.9},
-                         "robot0_LFJ1": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245},
-                         "robot0_THJ4": {"stiffness": 1, "damping": 0.1, "max_force": 2.3722},
-                         "robot0_THJ3": {"stiffness": 1, "damping": 0.1, "max_force": 1.45},
-                         "robot0_THJ2": {"stiffness": 1, "damping": 0.1, "max_force": 0.99},
-                         "robot0_THJ1": {"stiffness": 1, "damping": 0.1, "max_force": 0.99},
-                         "robot0_THJ0": {"stiffness": 1, "damping": 0.1, "max_force": 0.81},
+                         "index_joint_0": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/palm_link/index_joint_0"},
+                         "index_joint_1": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/index_link_0/index_joint_1"},
+                         "index_joint_2": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/index_link_1/index_joint_2"},
+                         "index_joint_3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/index_link_2/index_joint_3"},
+                         "middle_joint_0": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/palm_link/middle_joint_0"},
+                         "middle_joint_1": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/middle_link_0/middle_joint_1"},
+                         "middle_joint_2": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/middle_link_1/middle_joint_2"},
+                         "middle_joint_3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/middle_link_2/middle_joint_3"},
+                         "ring_joint_0": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/palm_link/ring_joint_0"},
+                         "ring_joint_1": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/ring_link_0/ring_joint_1"},
+                         "ring_joint_2": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/ring_link_1/ring_joint_2"},
+                         "ring_joint_3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/ring_link_2/ring_joint_3"},
+                         "thumb_joint_0": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/palm_link/thumb_joint_0"},
+                         "thumb_joint_1": {"stiffness": 1, "damping": 0.1, "max_force": 2.3722,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/thumb_link_0/thumb_joint_1"},
+                         "thumb_joint_2": {"stiffness": 1, "damping": 0.1, "max_force": 1.45,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/thumb_link_1/thumb_joint_2"},
+                         "thumb_joint_3": {"stiffness": 1, "damping": 0.1, "max_force": 0.99,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/thumb_link_2/thumb_joint_3"},
                         }
 
         for joint_name, config in joints_config.items():
             set_drive(
-                f"{self.prim_path}/joints/{joint_name}", 
+                # f"{self.prim_path}/joints/{joint_name}", 
+                config["prim_path"],
                 "angular", 
                 "position", 
                 0.0, 

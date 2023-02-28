@@ -48,7 +48,9 @@ class VecEnvRLGames(VecEnvBase):
     def set_task(
         self, task, backend="numpy", sim_params=None, init_sim=True
     ) -> None:
+        print('*' * 50)
         super().set_task(task, backend, sim_params, init_sim)
+        print('&' * 50)
 
         self.num_states = self._task.num_states
         self.state_space = self._task.state_space

@@ -60,7 +60,6 @@ class ShadowHandTask(InHandManipulationTask):
         if not (self.obs_type in ["openai", "full_no_vel", "full", "full_state"]):
             raise Exception(
                 "Unknown type of observations!\nobservationType should be one of: [openai, full_no_vel, full, full_state]")
-        print("Obs type:", self.obs_type)
         self.num_obs_dict = {
             "openai": 42,
             "full_no_vel": 58,
@@ -191,7 +190,6 @@ class ShadowHandTask(InHandManipulationTask):
 
 
     def compute_full_observations(self, no_vel=False):
-        print(self._num_actions)
         if no_vel:
             self.obs_buf[:, 0:self.num_hand_dofs] = unscale(self.hand_dof_pos,
                 self.hand_dof_lower_limits, self.hand_dof_upper_limits)

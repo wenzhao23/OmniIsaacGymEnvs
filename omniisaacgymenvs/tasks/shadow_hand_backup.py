@@ -48,7 +48,6 @@ class ShadowHandTask(InHandManipulationTask):
         env,
         offset=None
     ) -> None:
-        self._prim_path_override = "/World/kuka_allegro"
         self._sim_config = sim_config
         self._cfg = sim_config.config
         self._task_cfg = sim_config.task_config
@@ -63,24 +62,16 @@ class ShadowHandTask(InHandManipulationTask):
         print("Obs type:", self.obs_type)
         self.num_obs_dict = {
             "openai": 42,
-            "full_no_vel": 58,
-            "full": 88,
+            "full_no_vel": 77,
+            "full": 157,
             "full_state": 187,
         }
-        # self.num_obs_dict = {
-        #     "openai": 42,
-        #     "full_no_vel": 77,
-        #     "full": 157,
-        #     "full_state": 187,
-        # }
 
         self.asymmetric_obs = self._task_cfg["env"]["asymmetric_observations"]
         self.use_vel_obs = False
 
-        self.fingertip_obs = False
-        self.fingertips = []
-        # self.fingertip_obs = True
-        # self.fingertips = ["robot0:ffdistal", "robot0:mfdistal", "robot0:rfdistal", "robot0:lfdistal", "robot0:thdistal"]
+        self.fingertip_obs = True
+        self.fingertips = ["robot0:ffdistal", "robot0:mfdistal", "robot0:rfdistal", "robot0:lfdistal", "robot0:thdistal"]
         self.num_fingertips = len(self.fingertips)
 
         self.object_scale = torch.tensor([1.0, 1.0, 1.0])
@@ -89,11 +80,9 @@ class ShadowHandTask(InHandManipulationTask):
         num_states = 0
         if self.asymmetric_obs:
             num_states = 187
-        else:
-            num_states = self.num_obs_dict[self.obs_type]
 
         self._num_observations = self.num_obs_dict[self.obs_type]
-        self._num_actions = 16
+        self._num_actions = 20
         self._num_states = num_states
 
         InHandManipulationTask.__init__(self, name=name, env=env)
@@ -104,7 +93,7 @@ class ShadowHandTask(InHandManipulationTask):
         hand_start_orientation = torch.tensor([0.0, 0.0, -0.70711, 0.70711], device=self.device)
 
         shadow_hand = ShadowHand(
-            prim_path=self._prim_path_override or self.default_zero_env_path + "/shadow_hand",
+            prim_path=self.default_zero_env_path + "/shadow_hand", 
             name="shadow_hand",
             translation=hand_start_translation, 
             orientation=hand_start_orientation,
@@ -120,16 +109,16 @@ class ShadowHandTask(InHandManipulationTask):
         return hand_start_translation, pose_dy, pose_dz
     
     def get_hand_view(self, scene):
-        hand_view = ShadowHandView(prim_paths_expr="/World/kuka_allegro/kuka_allegro", name="shadow_hand_view")
-        # scene.add(hand_view._fingers)
+        hand_view = ShadowHandView(prim_paths_expr="/World/envs/.*/shadow_hand", name="shadow_hand_view")
+        scene.add(hand_view._fingers)
         return hand_view
 
     def get_observations(self):
         self.get_object_goal_observations()
 
-        # self.fingertip_pos, self.fingertip_rot = self._hands._fingers.get_world_poses(clone=False)
-        # self.fingertip_pos -= self._env_pos.repeat((1, self.num_fingertips)).reshape(self.num_envs * self.num_fingertips, 3)
-        # self.fingertip_velocities = self._hands._fingers.get_velocities(clone=False)
+        self.fingertip_pos, self.fingertip_rot = self._hands._fingers.get_world_poses(clone=False)
+        self.fingertip_pos -= self._env_pos.repeat((1, self.num_fingertips)).reshape(self.num_envs * self.num_fingertips, 3)
+        self.fingertip_velocities = self._hands._fingers.get_velocities(clone=False)
 
         self.hand_dof_pos = self._hands.get_joint_positions(clone=False)
         self.hand_dof_vel = self._hands.get_joint_velocities(clone=False)
@@ -191,7 +180,6 @@ class ShadowHandTask(InHandManipulationTask):
 
 
     def compute_full_observations(self, no_vel=False):
-        print(self._num_actions)
         if no_vel:
             self.obs_buf[:, 0:self.num_hand_dofs] = unscale(self.hand_dof_pos,
                 self.hand_dof_lower_limits, self.hand_dof_upper_limits)
@@ -201,9 +189,8 @@ class ShadowHandTask(InHandManipulationTask):
             self.obs_buf[:, 31:34] = self.goal_pos
             self.obs_buf[:, 34:38] = self.goal_rot
             self.obs_buf[:, 38:42] = quat_mul(self.object_rot, quat_conjugate(self.goal_rot))
-            # self.obs_buf[:, 42:57] = self.fingertip_pos.reshape(self.num_envs, 3*self.num_fingertips)
-            # self.obs_buf[:, 57:77] = self.actions 
-            self.obs_buf[:, 42:42 + self._num_actions] = self.actions
+            self.obs_buf[:, 42:57] = self.fingertip_pos.reshape(self.num_envs, 3*self.num_fingertips)
+            self.obs_buf[:, 57:77] = self.actions
         else:
             self.obs_buf[:, 0:self.num_hand_dofs] = unscale(self.hand_dof_pos,
                 self.hand_dof_lower_limits, self.hand_dof_upper_limits)
@@ -219,12 +206,11 @@ class ShadowHandTask(InHandManipulationTask):
             self.obs_buf[:, 68:72] = quat_mul(self.object_rot, quat_conjugate(self.goal_rot))
 
             # (7+6)*self.num_fingertips = 65
-            # self.obs_buf[:, 72:87] = self.fingertip_pos.reshape(self.num_envs, 3*self.num_fingertips)
-            # self.obs_buf[:, 87:107] = self.fingertip_rot.reshape(self.num_envs, 4*self.num_fingertips)
-            # self.obs_buf[:, 107:137] = self.fingertip_velocities.reshape(self.num_envs, 6*self.num_fingertips)
+            self.obs_buf[:, 72:87] = self.fingertip_pos.reshape(self.num_envs, 3*self.num_fingertips)
+            self.obs_buf[:, 87:107] = self.fingertip_rot.reshape(self.num_envs, 4*self.num_fingertips)
+            self.obs_buf[:, 107:137] = self.fingertip_velocities.reshape(self.num_envs, 6*self.num_fingertips)
            
-            # self.obs_buf[:, 137:157] = self.actions
-            self.obs_buf[:, 72:72 + self._num_actions] = self.actions
+            self.obs_buf[:, 137:157] = self.actions
     
 
     def compute_full_state(self, asymm_obs=False):

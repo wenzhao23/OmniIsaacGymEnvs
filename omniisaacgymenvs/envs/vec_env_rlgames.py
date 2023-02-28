@@ -51,6 +51,8 @@ class VecEnvRLGames(VecEnvBase):
         super().set_task(task, backend, sim_params, init_sim)
 
         self.num_states = self._task.num_states
+        print(self._task.state_space)
+        print("*" * 100)
         self.state_space = self._task.state_space
 
     def step(self, actions):

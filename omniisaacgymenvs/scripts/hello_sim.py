@@ -1,7 +1,7 @@
 from omni.isaac.kit import SimulationApp
 simulation_app = SimulationApp({"headless": False})
 
-
+import time
 from typing import Any, Mapping
 import hydra
 import numpy as np
@@ -16,6 +16,7 @@ from omni.isaac.core.utils.stage import get_current_stage
 from omni.isaac.core.utils.torch.maths import set_seed
 # from omniisaacgymenvs.utils.hydra_cfg import reformat
 from omniisaacgymenvs.robots.articulations import shadow_hand
+from omniisaacgymenvs.robots.articulations.views import shadow_hand_view
 from omniisaacgymenvs.utils.config_utils import sim_config
 from omegaconf import DictConfig
 import torch
@@ -40,8 +41,11 @@ class Scene:
             stage=self._stage, shadow_hand_prim=hand.prim)
         hand.set_motor_control_mode(
             stage=self._stage, shadow_hand_path=hand.prim_path)
-        pose_dy, pose_dz = 0, 0.05
-        return hand
+
+        hand_view = shadow_hand_view.ShadowHandView(
+            prim_paths_expr="/World/kuka_allegro/kuka_allegro",
+            name="shadow_hand_view")     
+        return hand, hand_view
 
 
 def run():
@@ -63,10 +67,18 @@ def run():
         )
     )
 
-    scene = Scene(None)
-    world.scene.add(scene.get_hand())
+    scene = Scene()
+    hand, hand_view = scene.get_hand()
+    # world.scene.add(hand)
+    world.scene.add(hand_view)
+    world.reset()
+    start_time = time.time()
     while simulation_app.is_running():
+        time_elapsed = time.time() - start_time
         world.step(render=True)
+        hand_view.set_joint_position_targets(
+            [time_elapsed * 0.1] * 16
+        )
 
 
 if __name__ == '__main__':

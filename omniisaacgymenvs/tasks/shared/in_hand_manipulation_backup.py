@@ -160,7 +160,7 @@ class InHandManipulationTask(RLTask):
         self._sim_config.apply_articulation_settings("object", get_prim_at_path(obj.prim_path), self._sim_config.parse_actor_config("object"))
     
     def get_goal(self):
-        self.goal_displacement_tensor = torch.tensor([-0.15, -0.15, 0], device=self.device)
+        self.goal_displacement_tensor = torch.tensor([-0.2, -0.2, 0], device=self.device)
         self.goal_start_translation = self.object_start_translation + self.goal_displacement_tensor
         self.goal_start_translation[2] -= 0.04
         self.goal_start_orientation = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device)

@@ -29,7 +29,7 @@ class Scene:
         self.device = "cuda:0"
 
     def get_hand(self):
-        hand_start_translation = np.array([0.0, 0.0, 0.5])
+        hand_start_translation = np.array([0.0, 0.0, 0.1])
         hand_start_orientation = np.array([0.0, 0.0, 0, 1])
         hand = shadow_hand.ShadowHand(
             prim_path=self._hand_prim_path,
@@ -48,6 +48,23 @@ class Scene:
         return hand, hand_view
 
 
+def add_objects(world):
+    min_xyz = [-0.2, -0.2, 0.15]
+    max_xyz = [0.2, 0.2, 0.4]
+    for i in range(50):
+        position = np.random.uniform(low=min_xyz, high=max_xyz)
+        world.scene.add(
+            DynamicCuboid(
+                name=f"cube{i}",
+                position=position, # np.array([0, 0, 0.3]),
+                prim_path=f"/World/Cube{i}",
+                scale=np.array([0.0515, 0.0515, 0.0515]),
+                size=1.0,
+                color=np.array([0, 0, 1]),
+            )
+        )
+
+
 def run():
     world_settings = {
         "physics_dt": 1.0 / 60.0,
@@ -56,28 +73,25 @@ def run():
     world = World(**world_settings)
     world.scene.add_default_ground_plane()
 
-    cube = world.scene.add(
-        DynamicCuboid(
-            name="cube",
-            position=np.array([0.3, 0.3, 0.3]),
-            prim_path="/World/Cube",
-            scale=np.array([0.0515, 0.0515, 0.0515]),
-            size=1.0,
-            color=np.array([0, 0, 1]),
-        )
-    )
+    add_objects(world)
 
     scene = Scene()
     hand, hand_view = scene.get_hand()
-    # world.scene.add(hand)
     world.scene.add(hand_view)
     world.reset()
+
+    for prim in scene._stage.TraverseAll():
+        prim_type = prim.GetTypeName()
+        if "Joint" in prim_type:
+            print(prim)
+    # import sys
+    # sys.exit(0)
     start_time = time.time()
     while simulation_app.is_running():
         time_elapsed = time.time() - start_time
         world.step(render=True)
         hand_view.set_joint_position_targets(
-            [time_elapsed * 0.1] * 16
+            [time_elapsed * 0.1] * 22
         )
 
 

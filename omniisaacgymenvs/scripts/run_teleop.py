@@ -1,10 +1,23 @@
 from omni.isaac.kit import SimulationApp
 simulation_app = SimulationApp({"headless": False})
 
+import cv2
+# import keyboard
+import numpy as np
+import open3d as o3d
+import pygame
+from transforms3d.axangles import axangle2mat
+
+import config
+from capture import OpenCVCapture
+from hand_mesh import HandMesh
+from kinematics import mpii_to_mano
+from utils import OneEuroFilter, imresize
+from wrappers import ModelPipeline
+from utils import *
+
 import time
 from typing import Any, Mapping
-
-from data_types import se3
 import hydra
 import numpy as np
 from omni.isaac.core import World
@@ -16,7 +29,6 @@ from omni.isaac.core.utils.nucleus import get_assets_root_path
 from omni.isaac.core.utils.prims import get_prim_at_path
 from omni.isaac.core.utils.stage import get_current_stage
 from omni.isaac.core.utils.torch.maths import set_seed
-from omni.isaac.sensor import ContactSensor
 # from omniisaacgymenvs.utils.hydra_cfg import reformat
 from omniisaacgymenvs.robots.articulations import shadow_hand
 from omniisaacgymenvs.robots.articulations.views import shadow_hand_view
@@ -47,15 +59,14 @@ class Scene:
 
         hand_view = shadow_hand_view.ShadowHandView(
             prim_paths_expr="/World/kuka_allegro/kuka_allegro",
-            name="shadow_hand_view")
+            name="shadow_hand_view")     
         return hand, hand_view
 
 
 def add_objects(world):
-    num_random = 0
     min_xyz = [-0.2, -0.2, 0.15]
     max_xyz = [0.2, 0.2, 0.4]
-    for i in range(num_random):
+    for i in range(50):
         position = np.random.uniform(low=min_xyz, high=max_xyz)
         world.scene.add(
             DynamicCuboid(
@@ -67,22 +78,9 @@ def add_objects(world):
                 color=np.array([0, 0, 1]),
             )
         )
-    for i in range(3):
-        world.scene.add(
-            DynamicCuboid(
-                name=f"cube{num_random + i}",
-                position=np.array([0, 0, 0.1 * i + 0.3]),
-                prim_path=f"/World/Cube{num_random + i}",
-                scale=np.array([0.0515, 0.0515, 0.0515]),
-                size=1.0,
-                color=np.array([0, 0, 1]),
-            )
-    )
-
 
 
 def run():
-    np.random.seed(17)
     world_settings = {
         "physics_dt": 1.0 / 60.0,
         "stage_units_in_meters": 1.0,
@@ -95,81 +93,31 @@ def run():
     scene = Scene()
     hand, hand_view = scene.get_hand()
     world.scene.add(hand_view)
+    world.reset()
 
     for prim in scene._stage.TraverseAll():
         prim_type = prim.GetTypeName()
         if "Joint" in prim_type:
             print(prim)
 
-    hand_base_prim_path = "/World/kuka_allegro/kuka_allegro/"
-    contact_links = ["index_link_1", "index_link_2", "index_link_3",
-                     "middle_link_1", "middle_link_2", "middle_link_3",
-                     "ring_link_1", "ring_link_2", "ring_link_3",
-                     "thumb_link_1", "thumb_link_2", "thumb_link_3"]
-    hand_sensors = []
-    for contact_link in contact_links: 
-        hand_sensors.append(world.scene.add(
-            ContactSensor(
-                prim_path=hand_base_prim_path + contact_link + "/contact_sensor",
-                name="contact_sensor_" + contact_link,
-                min_threshold=0,
-                max_threshold=10000000,
-                radius=0.01,
-            )
-        ))
-        hand_sensors[-1].add_raw_contact_data_to_frame()
-
-    world.reset()
-
     start_time = time.time()
-    world_t_base_vec = hand_view.get_world_poses([0])
-    world_t_initial = se3.Transform(
-        xyz=world_t_base_vec[0][0], rot=world_t_base_vec[1][0])
+    start_joint_positions = hand_view.get_joint_positions()[0]
+    world_t_base = hand_view.get_world_poses([0])
+    # print(world_t_base)
     # import sys
     # sys.exit(1)
-    world_t_grasp = se3.Transform(xyz=[0, 0, -0.4]) * world_t_initial
-    initial_t_grasp = world_t_initial.inverse() * world_t_grasp
-    grasp_duration = 5.0
-    retract_duration = 3.0
-    close_time = 5.0
-    num_contacts = 0
-    grasped = False
-    retracting = False
     while simulation_app.is_running():
         time_elapsed = time.time() - start_time
         world.step(render=True)
         command = [time_elapsed * 0.1] * 22
         command = [0] * 22
-        if grasped:
-            if not retracting:
-                world_t_base_vec = hand_view.get_world_poses([0])
-                world_t_actual_grasp = se3.Transform(
-                    xyz=world_t_base_vec[0][0], rot=world_t_base_vec[1][0])
-                world_t_retract = se3.Transform(xyz=[0, 0, 0.4]) * world_t_actual_grasp
-                actual_grasp_t_retract = world_t_actual_grasp.inverse() * world_t_retract
-                actual_grasp_t_retract = initial_t_grasp.inverse()
-                time_retract = time_elapsed
-                retracting = True
-            command[:3] = actual_grasp_t_retract.translation * min(
-                1, (time_elapsed - time_retract) / retract_duration)
-        else:
-            command[:3] = initial_t_grasp.translation * min(1, time_elapsed / grasp_duration)
-            if time_elapsed > close_time:
-                command[6:] = [0.3 * (time_elapsed - close_time)] * 16
-
+        command[2] = start_joint_positions[2] + 0.01 * time_elapsed
         hand_view.set_joint_position_targets(
             command
         )
-        # print('-' * 50)
-        # print(np.linalg.norm(
-            # hand_view._physics_view.get_force_sensor_forces()[0, :, :], axis=1))
-
-        num_contacts = [hand_sensor.get_current_frame()["number_of_contacts"]
-                        for hand_sensor in hand_sensors]
-        if np.mean(num_contacts) > 5:
-            grasped = True
+        # get_joints_state
 
 
 if __name__ == '__main__':
-    run()
+    run(OpenCVCapture())
     simulation_app.close()

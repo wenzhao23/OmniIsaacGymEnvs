@@ -78,6 +78,18 @@ class ShadowHand(Robot):
 
     def set_motor_control_mode(self, stage, shadow_hand_path):
         joints_config = {
+                         "wrist_prismatic_1": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount/allegro_mount_0_1"},
+                         "wrist_prismatic_2": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_1/allegro_mount_1_2"},
+                         "wrist_prismatic_3": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_2/allegro_mount_2_3"},
+                         "wrist_revoluate_1": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_3/allegro_mount_3_4"},
+                         "wrist_revoluate_2": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_4/allegro_mount_4_5"},
+                         "wrist_revoluate_3": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
+                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_5/allegro_mount_5_6"},
                          "index_joint_0": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
                                            "prim_path": "/World/kuka_allegro/kuka_allegro/palm_link/index_joint_0"},
                          "index_joint_1": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
@@ -113,13 +125,21 @@ class ShadowHand(Robot):
                         }
 
         for joint_name, config in joints_config.items():
+            if "prismatic" in joint_name:
+                drive_type = "linear"
+                stiffness = config["stiffness"]
+                damping = config["damping"]
+            else:
+                drive_type = "angular"
+                stiffness = config["stiffness"]*np.pi/180
+                damping = config["damping"]*np.pi/180
             set_drive(
                 # f"{self.prim_path}/joints/{joint_name}", 
                 config["prim_path"],
-                "angular", 
+                drive_type, 
                 "position", 
                 0.0, 
-                config["stiffness"]*np.pi/180, 
-                config["damping"]*np.pi/180, 
+                stiffness,
+                damping,
                 config["max_force"]
             )

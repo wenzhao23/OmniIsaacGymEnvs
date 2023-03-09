@@ -3,7 +3,7 @@
 import numpy as np
 from typing import Union, Sequence, Text, Tuple
 
-from data_types import transformations as tr
+from omniisaacgymenvs.data_types import transformations as tr
 
 
 VectorType = Union[np.ndarray, Sequence]

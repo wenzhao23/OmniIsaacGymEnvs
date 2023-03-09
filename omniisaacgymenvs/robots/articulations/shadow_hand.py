@@ -124,7 +124,17 @@ class ShadowHand(Robot):
                                            "prim_path": "/World/kuka_allegro/kuka_allegro/thumb_link_2/thumb_joint_3"},
                         }
 
-        for joint_name, config in joints_config.items():
+        joint_names = [
+            "wrist_prismatic_1", "wrist_prismatic_2", "wrist_prismatic_3",
+            "wrist_revoluate_1", "wrist_revoluate_2", "wrist_revoluate_3",
+            "index_joint_0", "index_joint_1", "index_joint_2", "index_joint_3",
+            "middle_joint_0", "middle_joint_1", "middle_joint_2", "middle_joint_3",
+            "ring_joint_0", "ring_joint_1", "ring_joint_2", "ring_joint_3",
+            "thumb_joint_0", "thumb_joint_1", "thumb_joint_2", "thumb_joint_3"
+        ]
+
+        for joint_name in joint_names:
+            config = joints_config[joint_name]
             if "prismatic" in joint_name:
                 drive_type = "linear"
                 stiffness = config["stiffness"]

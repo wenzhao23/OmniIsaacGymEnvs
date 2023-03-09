@@ -16,6 +16,7 @@ from omni.isaac.core.utils.nucleus import get_assets_root_path
 from omni.isaac.core.utils.prims import get_prim_at_path
 from omni.isaac.core.utils.stage import get_current_stage
 from omni.isaac.core.utils.torch.maths import set_seed
+from omni.isaac.core.materials.physics_material import PhysicsMaterial
 from omni.isaac.sensor import ContactSensor
 # from omniisaacgymenvs.utils.hydra_cfg import reformat
 from omniisaacgymenvs.robots.articulations import shadow_hand
@@ -52,6 +53,7 @@ class Scene:
 
 
 def add_objects(world):
+    physics_material = PhysicsMaterial("/World/PhysicsMaterial")
     num_random = 0
     min_xyz = [-0.2, -0.2, 0.15]
     max_xyz = [0.2, 0.2, 0.4]
@@ -65,20 +67,31 @@ def add_objects(world):
                 scale=np.array([0.0515, 0.0515, 0.0515]),
                 size=1.0,
                 color=np.array([0, 0, 1]),
+                physics_material=physics_material
             )
         )
-    for i in range(3):
-        world.scene.add(
-            DynamicCuboid(
-                name=f"cube{num_random + i}",
-                position=np.array([0, 0, 0.1 * i + 0.3]),
-                prim_path=f"/World/Cube{num_random + i}",
-                scale=np.array([0.0515, 0.0515, 0.0515]),
-                size=1.0,
-                color=np.array([0, 0, 1]),
-            )
+    world.scene.add(
+        DynamicCuboid(
+            name=f"cube_support",
+            position=np.array([0, 0, 0.3]),
+            prim_path=f"/World/CubeSupport",
+            scale=np.array([0.0515, 0.0515, 0.1015]),
+            size=1.0,
+            color=np.array([0, 0, 1]),
+            physics_material=physics_material
+        )
     )
-
+    world.scene.add(
+        DynamicCuboid(
+            name=f"cube_lift",
+            position=np.array([0, 0, 0.4]),
+            prim_path=f"/World/CubeLift",
+            scale=np.array([0.0515, 0.1515, 0.0515]),
+            size=1.0,
+            color=np.array([0, 0, 1]),
+            physics_material=physics_material
+        )
+    )
 
 
 def run():
@@ -121,42 +134,72 @@ def run():
 
     world.reset()
 
+    # TODO: organize to state machine
+
     start_time = time.time()
     world_t_base_vec = hand_view.get_world_poses([0])
     world_t_initial = se3.Transform(
         xyz=world_t_base_vec[0][0], rot=world_t_base_vec[1][0])
-    # import sys
-    # sys.exit(1)
+    thumb_joint_0_index = hand_view.dof_names.index("thumb_joint_0")
+    wrist_indices = [
+        hand_view.dof_names.index("allegro_mount_0_1"),
+        hand_view.dof_names.index("allegro_mount_1_2"),
+        hand_view.dof_names.index("allegro_mount_2_3"),
+        hand_view.dof_names.index("allegro_mount_3_4"),
+        hand_view.dof_names.index("allegro_mount_4_5"),
+        hand_view.dof_names.index("allegro_mount_5_6"),
+    ]
+    finger_indices = [hand_view.dof_names.index("index_joint_1"),
+                      hand_view.dof_names.index("index_joint_2"),
+                      hand_view.dof_names.index("index_joint_3"),
+                      hand_view.dof_names.index("middle_joint_1"),
+                      hand_view.dof_names.index("middle_joint_2"),
+                      hand_view.dof_names.index("middle_joint_3"),
+                      hand_view.dof_names.index("ring_joint_1"),
+                      hand_view.dof_names.index("ring_joint_2"),
+                      hand_view.dof_names.index("ring_joint_3"),
+                      hand_view.dof_names.index("thumb_joint_2"),
+                      hand_view.dof_names.index("thumb_joint_3"),
+                      ]
     world_t_grasp = se3.Transform(xyz=[0, 0, -0.4]) * world_t_initial
     initial_t_grasp = world_t_initial.inverse() * world_t_grasp
     grasp_duration = 5.0
     retract_duration = 3.0
     close_time = 5.0
     num_contacts = 0
+    in_contact = False
     grasped = False
     retracting = False
-    while simulation_app.is_running():
-        time_elapsed = time.time() - start_time
+    print(wrist_indices)
+    print(finger_indices)
+    time_elapsed = 0
+    # import sys
+    # sys.exit(1)
+    while simulation_app.is_running() and time_elapsed < 15:
         world.step(render=True)
-        command = [time_elapsed * 0.1] * 22
         command = [0] * 22
         if grasped:
             if not retracting:
-                world_t_base_vec = hand_view.get_world_poses([0])
-                world_t_actual_grasp = se3.Transform(
-                    xyz=world_t_base_vec[0][0], rot=world_t_base_vec[1][0])
                 world_t_retract = se3.Transform(xyz=[0, 0, 0.4]) * world_t_actual_grasp
                 actual_grasp_t_retract = world_t_actual_grasp.inverse() * world_t_retract
                 actual_grasp_t_retract = initial_t_grasp.inverse()
                 time_retract = time_elapsed
+                finger_joint_grasp = hand_view.get_joint_positions()[0][finger_indices]
                 retracting = True
-            command[:3] = actual_grasp_t_retract.translation * min(
+            command[:3] = actual_grasp_joint_vec[:3] + actual_grasp_t_retract.translation * min(
                 1, (time_elapsed - time_retract) / retract_duration)
+            for i, index in enumerate(finger_indices):
+                command[index] = finger_joint_grasp[i]
         else:
-            command[:3] = initial_t_grasp.translation * min(1, time_elapsed / grasp_duration)
+            if not in_contact:
+                command[:3] = initial_t_grasp.translation * min(1, time_elapsed / grasp_duration)
+            else:
+                command[:3] = actual_grasp_joint_vec[:3]
             if time_elapsed > close_time:
-                command[6:] = [0.3 * (time_elapsed - close_time)] * 16
+                for i, index in enumerate(finger_indices):
+                    command[index] = 0.3 * (time_elapsed - close_time)
 
+        command[thumb_joint_0_index] = 90.0
         hand_view.set_joint_position_targets(
             command
         )
@@ -166,8 +209,19 @@ def run():
 
         num_contacts = [hand_sensor.get_current_frame()["number_of_contacts"]
                         for hand_sensor in hand_sensors]
-        if np.mean(num_contacts) > 5:
-            grasped = True
+        if in_contact:
+            if time_elapsed - time_in_contact > 2.0:
+                grasped = True
+        else:
+            if np.mean(num_contacts) > 5:
+                in_contact = True
+                print("-" * 10 + "in_contact")
+                time_in_contact = time_elapsed
+                actual_grasp_joint_vec = hand_view.get_joint_positions()[0][wrist_indices]
+                initial_t_actual_grasp = se3.Transform(
+                    xyz=actual_grasp_joint_vec[:3], rot=actual_grasp_joint_vec[3:])
+                world_t_actual_grasp = world_t_initial * initial_t_actual_grasp
+        time_elapsed = time.time() - start_time
 
 
 if __name__ == '__main__':

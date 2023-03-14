@@ -33,8 +33,11 @@ class Scene:
     self.device = "cuda:0"
 
   def get_hand(self):
-    hand_start_translation = np.array([0.0, 0.0, 0.1])
-    hand_start_orientation = np.array([0.0, 0.0, 0, 1])
+    hand_start_translation = np.array([-0.1, 0.0, 0.6])
+    hand_start_orientation = (
+      se3.Transform(rot=np.radians([0, 120, 0])) *
+      se3.Transform(rot=np.radians([0, 0, 140]))
+    ).quaternion
     hand = shadow_hand.ShadowHand(
       prim_path=self._hand_prim_path,
       name="hand",
@@ -116,11 +119,13 @@ def run():
 
   hand_base_prim_path = "/World/kuka_allegro/kuka_allegro/"
   contact_links = [
+    "index_link_2", "index_link_3",
+    "thumb_link_2", "thumb_link_3"]
     # "index_biotac_tip", "middle_biotac_tip", "ring_biotac_tip", "thumb_biotac_tip",
     # "index_link_1", "index_link_2", "index_link_3",
     # "middle_link_1", "middle_link_2", "middle_link_3",
     # "ring_link_1", "ring_link_2", "ring_link_3",
-    "thumb_link_1", "thumb_link_2", "thumb_link_3"]
+    # "thumb_link_1", "thumb_link_2", "thumb_link_3"]
   hand_sensors = []
   for contact_link in contact_links: 
     hand_sensors.append(world.scene.add(
@@ -177,7 +182,7 @@ def run():
   time_elapsed = 0
   # import sys
   # sys.exit(1)
-  while simulation_app.is_running() and time_elapsed < 15:
+  while simulation_app.is_running() and time_elapsed < 10:
     world.step(render=True)
     command = [0] * 22
     if grasped:
@@ -215,10 +220,10 @@ def run():
     num_contacts = [hand_sensor.get_current_frame()["number_of_contacts"]
             for hand_sensor in hand_sensors]
     if in_contact:
-      if time_elapsed - time_in_contact > 2.0:
+      if time_elapsed - time_in_contact > 5.0:
         grasped = True
     else:
-      if np.mean(num_contacts) > 5:
+      if np.mean(num_contacts) > 3:
         in_contact = True
         print("-" * 10 + "in_contact")
         time_in_contact = time_elapsed

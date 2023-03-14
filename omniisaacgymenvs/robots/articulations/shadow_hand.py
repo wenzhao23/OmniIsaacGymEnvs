@@ -54,9 +54,9 @@ class ShadowHand(Robot):
 
         assets_root_path = get_assets_root_path()
         assets_user_path = assets_root_path + "/../../../../my_data"
-        self._usd_path = assets_user_path + "/hello_picking.usd"
+        self._usd_path = assets_user_path + "/allegro.usd"
 
-        self._position = torch.tensor([0.0, 0.0, 0.5]) if translation is None else translation
+        self._position = torch.tensor([0.0, 0.0, 0.0]) if translation is None else translation
         self._orientation = torch.tensor([1.0, 0.0, 0.0, 0.0]) if orientation is None else orientation
             
         add_reference_to_stage(self._usd_path, prim_path)

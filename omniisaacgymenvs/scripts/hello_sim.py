@@ -1,11 +1,13 @@
 from omni.isaac.kit import SimulationApp
 simulation_app = SimulationApp({"headless": False})
 
+import os
 import time
 from typing import Any, Mapping
 
 from data_types import se3
 import hydra
+import kinpy as kp
 import numpy as np
 from omni.isaac.core import World
 from omni.isaac.core.objects import DynamicCuboid
@@ -111,6 +113,8 @@ def run():
   scene = Scene()
   hand, hand_view = scene.get_hand()
   world.scene.add(hand_view)
+  chain = kp.build_chain_from_urdf(
+    open(os.path.expanduser('~/Downloads/allegro/allegro.urdf')).read())
 
   for prim in scene._stage.TraverseAll():
     prim_type = prim.GetTypeName()
@@ -148,26 +152,27 @@ def run():
   world_t_initial = se3.Transform(
     xyz=world_t_base_vec[0][0], rot=world_t_base_vec[1][0])
   thumb_joint_0_index = hand_view.dof_names.index("thumb_joint_0")
-  wrist_indices = [
-    hand_view.dof_names.index("allegro_mount_0_1"),
-    hand_view.dof_names.index("allegro_mount_1_2"),
-    hand_view.dof_names.index("allegro_mount_2_3"),
-    hand_view.dof_names.index("allegro_mount_3_4"),
-    hand_view.dof_names.index("allegro_mount_4_5"),
-    hand_view.dof_names.index("allegro_mount_5_6"),
-  ]
-  finger_indices = [hand_view.dof_names.index("index_joint_1"),
-            hand_view.dof_names.index("index_joint_2"),
-            hand_view.dof_names.index("index_joint_3"),
-            hand_view.dof_names.index("middle_joint_1"),
-            hand_view.dof_names.index("middle_joint_2"),
-            hand_view.dof_names.index("middle_joint_3"),
-            hand_view.dof_names.index("ring_joint_1"),
-            hand_view.dof_names.index("ring_joint_2"),
-            hand_view.dof_names.index("ring_joint_3"),
-            hand_view.dof_names.index("thumb_joint_2"),
-            hand_view.dof_names.index("thumb_joint_3"),
-            ]
+  wrist_names = ["allegro_mount_0_1",
+                 "allegro_mount_1_2",
+                 "allegro_mount_2_3",
+                 "allegro_mount_3_4",
+                 "allegro_mount_4_5",
+                 "allegro_mount_5_6"]
+  wrist_indices = [hand_view.dof_names.index(name) for name in wrist_names]
+  finger_names = ["thumb_joint_0",
+                  "thumb_joint_2",
+                  "thumb_joint_3",
+                  "index_joint_1",
+                  "index_joint_2",
+                  "index_joint_3",
+                  "middle_joint_1",
+                  "middle_joint_2",
+                  "middle_joint_3",
+                  "ring_joint_1",
+                  "ring_joint_2",
+                  "ring_joint_3"]
+
+  finger_indices = [hand_view.dof_names.index(name) for name in finger_names]
   world_t_grasp = se3.Transform(xyz=[0, 0, -0.4]) * world_t_initial
   initial_t_grasp = world_t_initial.inverse() * world_t_grasp
   grasp_duration = 5.0
@@ -215,8 +220,19 @@ def run():
     #   hand_view._physics_view.get_force_sensor_forces()[0, :, :], axis=1))
 
     print('-' * 30)
+
+    joint_config = {}
+    wrist_joint_vec = hand_view.get_joint_positions()[0][wrist_indices]
+    for joint_name, joint_pos in zip(wrist_names, wrist_joint_vec):
+      joint_config[joint_name] = joint_pos
+    finger_joint_vec = hand_view.get_joint_positions()[0][finger_indices]
+    for joint_name, joint_pos in zip(finger_names, finger_joint_vec):
+      joint_config[joint_name] = joint_pos
+    fk_result = chain.forward_kinematics(joint_config)
+    print(fk_result["allegro_mount_6"])
     for hs in hand_sensors:
       print(hs.get_current_frame())
+
     num_contacts = [hand_sensor.get_current_frame()["number_of_contacts"]
             for hand_sensor in hand_sensors]
     if in_contact:

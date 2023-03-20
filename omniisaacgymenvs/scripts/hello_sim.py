@@ -23,7 +23,6 @@ from omni.isaac.core.utils.torch.maths import set_seed
 from omni.isaac.core.materials.physics_material import PhysicsMaterial
 from omni.isaac.sensor import ContactSensor
 from omni.isaac.sensor import Camera
-# from omniisaacgymenvs.utils.hydra_cfg import reformat
 from omniisaacgymenvs.robots.articulations import shadow_hand
 from omniisaacgymenvs.robots.articulations.views import shadow_hand_view
 from omniisaacgymenvs.utils.config_utils import sim_config
@@ -36,7 +35,7 @@ def create_hand(stage, hand_prim_path):
   """
   hand_start_translation = np.array([-0.1, 0.0, 0.6])
   hand_start_orientation = (
-    se3.Transform(rot=np.radians([0, 120, 0])) *
+    se3.Transform(rot=np.radians([0, 90, 0])) *  # 120
     se3.Transform(rot=np.radians([0, 0, 140]))
   ).quaternion
   hand = shadow_hand.ShadowHand(
@@ -116,7 +115,7 @@ def run():
     open(os.path.expanduser('~/Downloads/allegro/allegro.urdf')).read())
 
   # Creates static camera
-  camera = Camera(
+  head_camera = Camera(
       prim_path="/World/camera",
       position=np.array([0.5, 0.0, 1.0]),
       frequency=20,
@@ -124,20 +123,24 @@ def run():
       orientation=(se3.Transform(rot=[0, 0, np.radians(180)]) *
                    se3.Transform(rot=[0, np.radians(50), 0])).quaternion,
   )
-  camera.set_focal_length(1.0)
-  camera.set_focus_distance(1.0)
-  camera.set_horizontal_aperture(2.0955)
-  camera.set_vertical_aperture(1.52905)
-  camera.set_clipping_range(0.01, 10000)
-  # camera.set_default_state(np.array([1.5, 0.0, 1.5]),
-  #                          se3.Transform(rot=[0, np.radians(51), 0]).quaternion)
+  head_camera.set_focal_length(1.0)
+  head_camera.set_focus_distance(1.0)
+  head_camera.set_horizontal_aperture(2.0955)
+  head_camera.set_vertical_aperture(1.52905)
+  head_camera.set_clipping_range(0.01, 10000)
+
   # # Creates in-hand camera
-  # camera = Camera(
-  #     prim_path="/World/kuka_allegro/palm_link/Camera",
-  #     position=np.array([0.0, 0.0, 0.0]),
-  #     frequency=20,
-  #     resolution=(240, 320),
-  #     orientation=[1, 0, 0, 0])
+  hand_camera = Camera(
+      prim_path="/World/kuka_allegro/kuka_allegro/palm_link/Camera",
+      # position=np.array([0.0, 0.0, 0.0]),
+      # orientation=[1, 0, 0, 0],
+      frequency=20,
+      resolution=(240, 320))
+  hand_camera.set_focal_length(0.5)
+  hand_camera.set_focus_distance(1.0)
+  hand_camera.set_horizontal_aperture(2.0955)
+  hand_camera.set_vertical_aperture(1.52905)
+  hand_camera.set_clipping_range(0.01, 10000)
 
   # Creates contact sensors on the hand
   hand_base_prim_path = "/World/kuka_allegro/kuka_allegro/"
@@ -167,7 +170,8 @@ def run():
       print(prim)
 
   world.reset()
-  camera.initialize()
+  head_camera.initialize()
+  hand_camera.initialize()
 
   thumb_joint_0_index = hand_view.dof_names.index("thumb_joint_0")
 
@@ -217,13 +221,22 @@ def run():
   contact_trajectory = []
   start_time = time.time()
   tmp = True
-  while simulation_app.is_running() and time_elapsed < 300:
+  wait_for_recording = time.time()
+  while simulation_app.is_running() and time_elapsed < 10:
+
+    # # Prepares for recording
+    # if time.time() - wait_for_recording < 10:
+    #   world.step(render=True)
+    #   continue
+    # if tmp:
+    #   start_time = time.time()
+    #   tmp = False
 
     world.step(render=True)
-    print(camera.get_current_frame())
+    # print(hand_camera.get_current_frame())
     # if time_elapsed > 1.0 and tmp:
     #   from matplotlib import pyplot as plt
-    #   imgplot = plt.imshow(camera.get_rgba()[:, :, :3])
+    #   imgplot = plt.imshow(hand_camera.get_rgba()[:, :, :3])
     #   plt.show()
     #   tmp = False
     

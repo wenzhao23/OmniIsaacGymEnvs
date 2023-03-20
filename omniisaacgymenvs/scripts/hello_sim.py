@@ -22,6 +22,7 @@ from omni.isaac.core.utils.stage import get_current_stage
 from omni.isaac.core.utils.torch.maths import set_seed
 from omni.isaac.core.materials.physics_material import PhysicsMaterial
 from omni.isaac.sensor import ContactSensor
+from omni.isaac.sensor import Camera
 # from omniisaacgymenvs.utils.hydra_cfg import reformat
 from omniisaacgymenvs.robots.articulations import shadow_hand
 from omniisaacgymenvs.robots.articulations.views import shadow_hand_view
@@ -114,6 +115,30 @@ def run():
   chain = kp.build_chain_from_urdf(
     open(os.path.expanduser('~/Downloads/allegro/allegro.urdf')).read())
 
+  # Creates static camera
+  camera = Camera(
+      prim_path="/World/camera",
+      position=np.array([0.5, 0.0, 1.0]),
+      frequency=20,
+      resolution=(480, 640),
+      orientation=(se3.Transform(rot=[0, 0, np.radians(180)]) *
+                   se3.Transform(rot=[0, np.radians(50), 0])).quaternion,
+  )
+  camera.set_focal_length(1.0)
+  camera.set_focus_distance(1.0)
+  camera.set_horizontal_aperture(2.0955)
+  camera.set_vertical_aperture(1.52905)
+  camera.set_clipping_range(0.01, 10000)
+  # camera.set_default_state(np.array([1.5, 0.0, 1.5]),
+  #                          se3.Transform(rot=[0, np.radians(51), 0]).quaternion)
+  # # Creates in-hand camera
+  # camera = Camera(
+  #     prim_path="/World/kuka_allegro/palm_link/Camera",
+  #     position=np.array([0.0, 0.0, 0.0]),
+  #     frequency=20,
+  #     resolution=(240, 320),
+  #     orientation=[1, 0, 0, 0])
+
   # Creates contact sensors on the hand
   hand_base_prim_path = "/World/kuka_allegro/kuka_allegro/"
   contact_links = [
@@ -142,6 +167,7 @@ def run():
       print(prim)
 
   world.reset()
+  camera.initialize()
 
   thumb_joint_0_index = hand_view.dof_names.index("thumb_joint_0")
 
@@ -190,10 +216,17 @@ def run():
   time_trajectory = []
   contact_trajectory = []
   start_time = time.time()
-  while simulation_app.is_running() and time_elapsed < 10:
+  tmp = True
+  while simulation_app.is_running() and time_elapsed < 300:
 
     world.step(render=True)
-
+    print(camera.get_current_frame())
+    # if time_elapsed > 1.0 and tmp:
+    #   from matplotlib import pyplot as plt
+    #   imgplot = plt.imshow(camera.get_rgba()[:, :, :3])
+    #   plt.show()
+    #   tmp = False
+    
     # Intializes the hand joint command
     command = [0] * 22
 

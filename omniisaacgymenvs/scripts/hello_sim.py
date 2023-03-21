@@ -197,7 +197,6 @@ def run():
                   "ring_joint_3"]
   finger_indices = [hand_view.dof_names.index(name) for name in finger_names]
 
-
   # Records the hand base pose and initial poses
   world_t_base_vec = hand_view.get_world_poses([0])
   world_t_initial = se3.Transform(
@@ -222,8 +221,16 @@ def run():
   start_time = time.time()
   tmp = True
   wait_for_recording = time.time()
-  while simulation_app.is_running() and time_elapsed < 10:
+  while simulation_app.is_running() and time_elapsed < 12:
 
+    # print('!' * 100)
+    # from omni.isaac.core.utils.prims import get_all_matching_child_prims
+    # from omni.isaac.core.prims.rigid_prim import RigidPrim
+    # all_prims = get_all_matching_child_prims("/World/kuka_allegro", lambda _: True)
+    # print(type(all_prims[10]))
+    # print(RigidPrim(prim_path=all_prims[10].GetPrimPath()).get_world_pose())
+    # import sys
+    # sys.exit(1)
     # # Prepares for recording
     # if time.time() - wait_for_recording < 10:
     #   world.step(render=True)

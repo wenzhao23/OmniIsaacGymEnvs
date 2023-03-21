@@ -32,6 +32,8 @@ import numpy as np
 import torch
 from omni.isaac.core.robots.robot import Robot
 from omni.isaac.core.utils.nucleus import get_assets_root_path
+from omni.isaac.core.utils.prims import define_prim
+from omni.isaac.core.utils.prims import get_prim_at_path
 from omni.isaac.core.utils.stage import add_reference_to_stage, get_current_stage
 from omniisaacgymenvs.tasks.utils.usd_utils import set_drive
 
@@ -58,7 +60,12 @@ class ShadowHand(Robot):
 
         self._position = torch.tensor([0.0, 0.0, 0.0]) if translation is None else translation
         self._orientation = torch.tensor([1.0, 0.0, 0.0, 0.0]) if orientation is None else orientation
-            
+
+        prim = get_prim_at_path(prim_path)
+        if not prim.IsValid():
+            prim = define_prim(prim_path, "Xform")
+            prim.GetReferences().AddReference(self._usd_path)
+
         add_reference_to_stage(self._usd_path, prim_path)
         
         super().__init__(
@@ -79,49 +86,49 @@ class ShadowHand(Robot):
     def set_motor_control_mode(self, stage, shadow_hand_path):
         joints_config = {
                          "wrist_prismatic_1": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount/allegro_mount_0_1"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/allegro_mount/allegro_mount_0_1"},
                          "wrist_prismatic_2": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_1/allegro_mount_1_2"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/allegro_mount_1/allegro_mount_1_2"},
                          "wrist_prismatic_3": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_2/allegro_mount_2_3"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/allegro_mount_2/allegro_mount_2_3"},
                          "wrist_revoluate_1": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_3/allegro_mount_3_4"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/allegro_mount_3/allegro_mount_3_4"},
                          "wrist_revoluate_2": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_4/allegro_mount_4_5"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/allegro_mount_4/allegro_mount_4_5"},
                          "wrist_revoluate_3": {"stiffness": 10000, "damping": 0.1, "max_force": 10000,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/allegro_mount_5/allegro_mount_5_6"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/allegro_mount_5/allegro_mount_5_6"},
                          "index_joint_0": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/palm_link/index_joint_0"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/palm_link/index_joint_0"},
                          "index_joint_1": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/index_link_0/index_joint_1"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/index_link_0/index_joint_1"},
                          "index_joint_2": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/index_link_1/index_joint_2"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/index_link_1/index_joint_2"},
                          "index_joint_3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/index_link_2/index_joint_3"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/index_link_2/index_joint_3"},
                          "middle_joint_0": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/palm_link/middle_joint_0"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/palm_link/middle_joint_0"},
                          "middle_joint_1": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/middle_link_0/middle_joint_1"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/middle_link_0/middle_joint_1"},
                          "middle_joint_2": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/middle_link_1/middle_joint_2"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/middle_link_1/middle_joint_2"},
                          "middle_joint_3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/middle_link_2/middle_joint_3"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/middle_link_2/middle_joint_3"},
                          "ring_joint_0": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/palm_link/ring_joint_0"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/palm_link/ring_joint_0"},
                          "ring_joint_1": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/ring_link_0/ring_joint_1"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/ring_link_0/ring_joint_1"},
                          "ring_joint_2": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/ring_link_1/ring_joint_2"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/ring_link_1/ring_joint_2"},
                          "ring_joint_3": {"stiffness": 1, "damping": 0.1, "max_force": 0.9,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/ring_link_2/ring_joint_3"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/ring_link_2/ring_joint_3"},
                          "thumb_joint_0": {"stiffness": 1, "damping": 0.1, "max_force": 0.7245,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/palm_link/thumb_joint_0"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/palm_link/thumb_joint_0"},
                          "thumb_joint_1": {"stiffness": 1, "damping": 0.1, "max_force": 2.3722,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/thumb_link_0/thumb_joint_1"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/thumb_link_0/thumb_joint_1"},
                          "thumb_joint_2": {"stiffness": 1, "damping": 0.1, "max_force": 1.45,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/thumb_link_1/thumb_joint_2"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/thumb_link_1/thumb_joint_2"},
                          "thumb_joint_3": {"stiffness": 1, "damping": 0.1, "max_force": 0.99,
-                                           "prim_path": "/World/kuka_allegro/kuka_allegro/thumb_link_2/thumb_joint_3"},
+                                           "prim_path": shadow_hand_path + "/kuka_allegro/thumb_link_2/thumb_joint_3"},
                         }
 
         joint_names = [

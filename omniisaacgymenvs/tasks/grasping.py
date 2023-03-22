@@ -35,6 +35,10 @@ class Grasping(ABC, BaseTask):
     # which requires a sepcial query for thumb_joint_0
     self._thumb_joint_0_index = {}
 
+  @property
+  def offset(self):
+    return self._offset
+
   def post_reset(self) -> None:
     """Calls while doing a .reset() on the world.
     """
@@ -142,12 +146,11 @@ class Grasping(ABC, BaseTask):
 
     stage = get_current_stage()
 
+    usd_path = "/World/kuka_allegro"
     prim_path = find_unique_string_name(
-      initial_name="/World/kuka_allegro",
+      initial_name=usd_path,
       is_unique_fn=lambda x: not is_prim_path_valid(x))
-    prim_name = find_unique_string_name(
-      initial_name="hand",
-      is_unique_fn=lambda x: not is_prim_path_valid(x))
+    prim_name = prim_path.replace(usd_path, "hand")
 
     hand_start_translation = np.array([-0.1, 0.0, 0.6])
     hand_start_orientation = (
@@ -176,13 +179,11 @@ class Grasping(ABC, BaseTask):
 
   def _add_static_camera(self):
     # Creates static camera
-    # usd_path = "/World/camera"
+    usd_path = "/World/camera"
     prim_path = find_unique_string_name(
-      initial_name="/World/camera",
+      initial_name=usd_path,
       is_unique_fn=lambda x: not is_prim_path_valid(x))
-    prim_name = find_unique_string_name(
-      initial_name="static_camera",
-      is_unique_fn=lambda x: not is_prim_path_valid(x))
+    prim_name = prim_path.replace(usd_path, "static_camera")
 
     # prim = get_prim_at_path(prim_path)
     # if not prim.IsValid():
@@ -211,12 +212,11 @@ class Grasping(ABC, BaseTask):
   def _add_hand_camera(self):
     # Creates in-hand camera
     # usd_path = "/World/kuka_allegro/kuka_allegro/palm_link/Camera",
+    usd_path = "/World/kuka_allegro/kuka_allegro/palm_link/Camera"
     prim_path = find_unique_string_name(
-      initial_name="/World/kuka_allegro/kuka_allegro/palm_link/Camera",
+      initial_name=usd_path,
       is_unique_fn=lambda x: not is_prim_path_valid(x))
-    prim_name = find_unique_string_name(
-      initial_name="hand_camera",
-      is_unique_fn=lambda x: not is_prim_path_valid(x))
+    prim_name = prim_path.replace(usd_path, "hand_camera")
 
     # prim = get_prim_at_path(prim_path)
     # if not prim.IsValid():

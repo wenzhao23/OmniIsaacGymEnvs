@@ -20,11 +20,33 @@ def run():
     "stage_units_in_meters": 1.0,
     "rendering_dt": 1.0 / 60.0}
   world = World(**world_settings)
-  grasping_task = grasping.Grasping(
-    "grasping_task_001", offset=np.array([0, 0, 0]))
-  grasping_task.setup_scene(world.scene)
+
+  # TODO: use cloner for duplication
+  tasks = []
+  task_index = 0
+  rows = 5
+  cols = 5
+  spacing = 0.5
+  for i in range (3):
+    for j in range(3):
+      task_index += 1
+      tasks.append(grasping.Grasping(
+        f"grasping_{task_index:03d}",
+        offset=spacing * np.array([i - int(rows / 2), j - int(cols / 2) , 0])))
+      tasks[-1].setup_scene(world.scene)
   world.reset()
 
+  for task in tasks:
+    for hand_view in task._hand_views.values():
+      current_poses = hand_view.get_world_poses()
+      hand_view.set_world_poses(positions=current_poses[0] + task.offset.reshape((1, 3)),
+                              orientations=current_poses[1])
+
+  time_elapsed = 0
+  start_time = time.time()
+  while simulation_app.is_running() and time_elapsed < 10:
+    world.step(render=True)
+    time_elapsed = time.time() - start_time
 
 
 if __name__ == '__main__':

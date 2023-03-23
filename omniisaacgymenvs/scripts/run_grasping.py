@@ -37,15 +37,13 @@ def run():
       tasks[-1].setup_scene(world.scene)
   world.reset()
 
-  # for task in tasks:
-  #   for hand_view in task._hand_views.values():
-  #     current_poses = hand_view.get_world_poses()
-  #     hand_view.set_world_poses(positions=current_poses[0] + task.offset.reshape((1, 3)),
-  #                             orientations=current_poses[1])
+  # NOTE: hand pose reset does not working without .stop() 
+  world.stop()
+  world.play()
 
   time_elapsed = 0
   start_time = time.time()
-  while simulation_app.is_running() and time_elapsed < 30:
+  while simulation_app.is_running() and time_elapsed < 100:
     world.step(render=True)
     time_elapsed = time.time() - start_time
 

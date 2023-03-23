@@ -6,10 +6,12 @@ import numpy as np
 from omni.isaac.cloner import GridCloner
 from omni.isaac.core.materials.physics_material import PhysicsMaterial
 from omni.isaac.core.objects import DynamicCuboid
+from omni.isaac.core.prims.rigid_prim import RigidPrim
 from omni.isaac.core.tasks import BaseTask
 from omni.isaac.core.utils.prims import is_prim_path_valid
 from omni.isaac.core.utils.prims import define_prim
 from omni.isaac.core.utils.prims import get_prim_at_path
+from omni.isaac.core.utils.prims import get_all_matching_child_prims
 from omni.isaac.core.utils.stage import get_current_stage
 from omni.isaac.core.utils.string import find_unique_string_name
 from omni.isaac.sensor import Camera
@@ -37,11 +39,12 @@ class Grasping(ABC, BaseTask):
     # which requires a sepcial query for thumb_joint_0
     self._thumb_joint_0_index = {}
 
-    self._num_envs = 8
+    self._num_envs = 100
     self._env_spacing = 1.0
-    self._cloner = GridCloner(spacing=self._env_spacing, num_per_row=4)
+    self._cloner = GridCloner(spacing=self._env_spacing, num_per_row=10)
     self.default_zero_env_path = "/World/envs/env_0"
-    self._cloner.define_base_env("/World/envs")
+    self.default_base_env_path = "/World/envs"
+    self._cloner.define_base_env(self.default_base_env_path)
     define_prim(self.default_zero_env_path)
 
   @property
@@ -51,36 +54,40 @@ class Grasping(ABC, BaseTask):
   def post_reset(self) -> None:
     """Calls while doing a .reset() on the world.
     """
+
+    print("!" * 100)
+    print(self._hand_view.get_world_poses())
+
     for camera in self._camera_names:
       camera.initialize()
     
-    for name, hand_view in self._hand_views.items():
-      self._thumb_joint_0_index[
-        name] = hand_view.dof_names.index("thumb_joint_0")
+    # for name, hand_view in self._hand_views.items():
+    #   self._thumb_joint_0_index[
+    #     name] = hand_view.dof_names.index("thumb_joint_0")
 
-      wrist_names = ["allegro_mount_0_1",
-                    "allegro_mount_1_2",
-                    "allegro_mount_2_3",
-                    "allegro_mount_3_4",
-                    "allegro_mount_4_5",
-                    "allegro_mount_5_6"]
-      self._wrist_joint_indices[name] = [
-        hand_view.dof_names.index(name) for name in wrist_names]
+    #   wrist_names = ["allegro_mount_0_1",
+    #                 "allegro_mount_1_2",
+    #                 "allegro_mount_2_3",
+    #                 "allegro_mount_3_4",
+    #                 "allegro_mount_4_5",
+    #                 "allegro_mount_5_6"]
+    #   self._wrist_joint_indices[name] = [
+    #     hand_view.dof_names.index(name) for name in wrist_names]
 
-      finger_names = ["thumb_joint_0",
-                      "thumb_joint_2",
-                      "thumb_joint_3",
-                      "index_joint_1",
-                      "index_joint_2",
-                      "index_joint_3",
-                      "middle_joint_1",
-                      "middle_joint_2",
-                      "middle_joint_3",
-                      "ring_joint_1",
-                      "ring_joint_2",
-                      "ring_joint_3"]
-      self._finger_joint_indices[name] = [
-        hand_view.dof_names.index(name) for name in finger_names]
+    #   finger_names = ["thumb_joint_0",
+    #                   "thumb_joint_2",
+    #                   "thumb_joint_3",
+    #                   "index_joint_1",
+    #                   "index_joint_2",
+    #                   "index_joint_3",
+    #                   "middle_joint_1",
+    #                   "middle_joint_2",
+    #                   "middle_joint_3",
+    #                   "ring_joint_1",
+    #                   "ring_joint_2",
+    #                   "ring_joint_3"]
+    #   self._finger_joint_indices[name] = [
+    #     hand_view.dof_names.index(name) for name in finger_names]
 
   def setup_scene(self, scene):
 
@@ -106,8 +113,8 @@ class Grasping(ABC, BaseTask):
     # Adds objects to manipulate
     self._add_cube_target(scene)
 
-    # Shifts task objects to different positions for different environments
-    self._move_task_objects_to_their_frame()
+    # # Shifts task objects to different positions for different environments
+    # self._move_task_objects_to_their_frame()
 
     prim_paths = self._cloner.generate_paths("/World/envs/env", self._num_envs)
     self._env_pos = self._cloner.clone(
@@ -122,6 +129,27 @@ class Grasping(ABC, BaseTask):
         collision_filter_global_paths)
     # self.set_initial_camera_params(
       # camera_position=[10, 10, 3], camera_target=[0, 0, 0])
+
+    self._hand_view = shadow_hand_view.ShadowHandView(
+      prim_paths_expr="/World/envs/env_.*/kuka_allegro",
+      name="all_hands_view")
+    scene.add(self._hand_view)
+
+    hand_start_translation = np.array([-0.1, 0.0, 0.6])
+    hand_start_orientation = (
+      se3.Transform(rot=np.radians([0, 90, 0])) *  # 120
+      se3.Transform(rot=np.radians([0, 0, 140]))
+    ).quaternion
+    shifted_positions = np.array(self._env_pos) + hand_start_translation.reshape((1, 3))
+    shifted_orientations = np.zeros((self._num_envs, 4)) + hand_start_orientation.reshape((1, 4))
+    self._hand_view.set_world_poses(shifted_positions, shifted_orientations)
+
+    # Randomizes all targets' sizes
+    all_prims = get_all_matching_child_prims("/World/envs", lambda x: "CubeTarget" in x)
+    for prim in all_prims:
+      RigidPrim(prim_path=prim.GetPrimPath()).set_local_scale(np.random.uniform(low=[0.03, 0.03, 0.03], high=[0.2, 0.2, 0.2]))
+
+    self._hand_views["right"] = self._hand_view
 
   def get_observations(self):
     pass
@@ -140,9 +168,9 @@ class Grasping(ABC, BaseTask):
 
     cube_target = DynamicCuboid(
         name=cube_target_name,
-        position=np.array([0, 0, 0.4]),
+        translation=np.array([0, 0, 0.4]),
         prim_path=cube_target_prim_path,
-        scale=np.array([0.0515, 0.1515, 0.0515]),
+        scale=np.array([0.05, 0.15, 0.05]),
         size=1.0,
         color=np.array([0, 0, 1]),
         physics_material=self._physics_material
@@ -152,18 +180,15 @@ class Grasping(ABC, BaseTask):
 
   def _add_cube_support(self, scene):
     cube_support_prim_path = "/World/envs/env_0/CubeSupport"
-    # cube_support_prim_path = find_unique_string_name(
-    #   initial_name="/World/envs/env_0/CubeSupport",
-    #   is_unique_fn=lambda x: not is_prim_path_valid(x))
     cube_support_name = find_unique_string_name(
       initial_name="cube_support",
       is_unique_fn=lambda x: not self.scene.object_exists(x))
 
     cube_support = DynamicCuboid(
         name=cube_support_name,
-        position=np.array([0, 0, 0.3]),
+        translation=np.array([0, 0, 0.2]),
         prim_path=cube_support_prim_path,
-        scale=np.array([0.0515, 0.0515, 0.1015]),
+        scale=np.array([0.05, 0.05, 0.10]),
         size=1.0,
         color=np.array([0, 0, 1]),
         physics_material=self._physics_material
@@ -180,7 +205,7 @@ class Grasping(ABC, BaseTask):
     # prim_path = find_unique_string_name(
     #   initial_name=initial_prim_path,
     #   is_unique_fn=lambda x: not is_prim_path_valid(x))
-    prim_name = prim_path.replace(initial_prim_path, "hand")
+    prim_name = prim_path.replace("/", "_") + "hand"
 
     hand_start_translation = np.array([-0.1, 0.0, 0.6])
     hand_start_orientation = (
@@ -198,14 +223,9 @@ class Grasping(ABC, BaseTask):
     hand.set_motor_control_mode(
       stage=stage, shadow_hand_path=hand.prim_path)
 
-    self._hand_view = shadow_hand_view.ShadowHandView(
-      prim_paths_expr=prim_path + "/kuka_allegro",
-      name=prim_name + "_view")
-
-    scene.add(self._hand_view)
     self._task_objects[prim_name] = hand
     self._hand_name = prim_name
-    self._hand_views["right"] = self._hand_view
+
 
   def _add_static_camera(self):
     # Creates static camera
@@ -214,11 +234,6 @@ class Grasping(ABC, BaseTask):
       initial_name=usd_path,
       is_unique_fn=lambda x: not is_prim_path_valid(x))
     prim_name = prim_path.replace(usd_path, "static_camera")
-
-    # prim = get_prim_at_path(prim_path)
-    # if not prim.IsValid():
-    #     prim = define_prim(prim_path, "Xform")
-    #     prim.GetReferences().AddReference(usd_path)
 
     head_camera = Camera(
         prim_path=prim_path,
@@ -247,11 +262,6 @@ class Grasping(ABC, BaseTask):
       initial_name=usd_path,
       is_unique_fn=lambda x: not is_prim_path_valid(x))
     prim_name = prim_path.replace(usd_path, "hand_camera")
-
-    # prim = get_prim_at_path(prim_path)
-    # if not prim.IsValid():
-    #     prim = define_prim(prim_path, "Xform")
-    #     prim.GetReferences().AddReference(usd_path)
 
     hand_camera = Camera(
         prim_path=prim_path,
@@ -288,3 +298,40 @@ class Grasping(ABC, BaseTask):
         )
       ))
       self._hand_sensors[-1].add_raw_contact_data_to_frame()
+
+
+# # Another way to attach fix the hand's base joint
+    # print("!" * 100)
+    # stage = get_current_stage()
+    # # # env_pos = stage.GetPrimAtPath(
+    # # #   f"{self.default_base_env_path}/env_{0}").GetAttribute(
+    # # #   "xformOp:translate").Get()
+    # from pxr import UsdPhysics, Gf
+    # anchor_pos = Gf.Vec3f(0, 0, 0) + Gf.Vec3f(-0.1, 0.0, 0.6)
+    # self.fix_to_ground(stage,
+    #                    self.default_base_env_path + "/env_0/kuka_allegro/ground_t_hand",
+    #                    "/World/envs/env_0" + "/kuka_allegro/allegro_mount",
+    #                    anchor_pos)
+
+  # def fix_to_ground(self, stage, joint_path, prim_path, anchor_pos):
+  #   from pxr import UsdPhysics, Gf
+  #   # D6 fixed joint
+  #   d6FixedJoint = UsdPhysics.Joint.Define(stage, joint_path)
+  #   d6FixedJoint.CreateBody0Rel().SetTargets([self._ground_plane_path])
+  #   d6FixedJoint.CreateBody1Rel().SetTargets([prim_path])
+  #   print(anchor_pos)
+  #   d6FixedJoint.CreateLocalPos0Attr().Set(anchor_pos)
+  #   d6FixedJoint.CreateLocalRot0Attr().Set(Gf.Quatf(1.0, Gf.Vec3f(0, 0, 0)))
+  #   d6FixedJoint.CreateLocalPos1Attr().Set(Gf.Vec3f(0, 0, 0))
+  #   d6FixedJoint.CreateLocalRot1Attr().Set(Gf.Quatf(1.0, Gf.Vec3f(0, 0, 0)))
+  #   # lock all DOF (lock - low is greater than high)
+  #   d6Prim = stage.GetPrimAtPath(joint_path)
+  #   limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, "transX")
+  #   limitAPI.CreateLowAttr(1.0)
+  #   limitAPI.CreateHighAttr(-1.0)
+  #   limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, "transY")
+  #   limitAPI.CreateLowAttr(1.0)
+  #   limitAPI.CreateHighAttr(-1.0)
+  #   limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, "transZ")
+  #   limitAPI.CreateLowAttr(1.0)
+  #   limitAPI.CreateHighAttr(-1.0)

@@ -3,6 +3,7 @@ from typing import Optional
 
 import numpy as np
 
+from omni.isaac.cloner import GridCloner
 from omni.isaac.core.materials.physics_material import PhysicsMaterial
 from omni.isaac.core.objects import DynamicCuboid
 from omni.isaac.core.tasks import BaseTask
@@ -21,10 +22,11 @@ from omniisaacgymenvs.robots.articulations.views import shadow_hand_view
 class Grasping(ABC, BaseTask):
   """A task that consists of a hand, sensors, and objects in the scene.
   """
-  def __init__(self, name: str, offset: Optional[np.ndarray] = None):
+  def __init__(self, name: str, world, offset: Optional[np.ndarray] = None):
 
     BaseTask.__init__(self, name=name, offset=offset)
 
+    self._world = world
     self._physics_material = PhysicsMaterial("/World/PhysicsMaterial")
     self._cameras = []
     self._hand_views = {}
@@ -34,6 +36,13 @@ class Grasping(ABC, BaseTask):
     # Hardcodes the thumb to be roughly antipodal,
     # which requires a sepcial query for thumb_joint_0
     self._thumb_joint_0_index = {}
+
+    self._num_envs = 8
+    self._env_spacing = 1.0
+    self._cloner = GridCloner(spacing=self._env_spacing, num_per_row=4)
+    self.default_zero_env_path = "/World/envs/env_0"
+    self._cloner.define_base_env("/World/envs")
+    define_prim(self.default_zero_env_path)
 
   @property
   def offset(self):
@@ -77,8 +86,12 @@ class Grasping(ABC, BaseTask):
 
     super().set_up_scene(scene)
 
+    collision_filter_global_paths = list()
+
     # Adds the ground
-    scene.add_default_ground_plane()
+    self._ground_plane_path = "/World/defaultGroundPlane"
+    scene.add_default_ground_plane(prim_path=self._ground_plane_path)
+    collision_filter_global_paths.append(self._ground_plane_path)
 
     # Adds hand
     self._add_hand(scene)
@@ -96,6 +109,20 @@ class Grasping(ABC, BaseTask):
     # Shifts task objects to different positions for different environments
     self._move_task_objects_to_their_frame()
 
+    prim_paths = self._cloner.generate_paths("/World/envs/env", self._num_envs)
+    self._env_pos = self._cloner.clone(
+      source_prim_path="/World/envs/env_0",
+      prim_paths=prim_paths,
+      replicate_physics=False)
+    # self._env_pos = torch.tensor(np.array(self._env_pos), device=self._device, dtype=torch.float)
+    self._cloner.filter_collisions(
+        self._world.get_physics_context().prim_path,
+        "/World/collisions",
+        prim_paths,
+        collision_filter_global_paths)
+    # self.set_initial_camera_params(
+      # camera_position=[10, 10, 3], camera_target=[0, 0, 0])
+
   def get_observations(self):
     pass
 
@@ -103,9 +130,10 @@ class Grasping(ABC, BaseTask):
     pass
 
   def _add_cube_target(self, scene):
-    cube_target_prim_path = find_unique_string_name(
-      initial_name="/World/CubeTarget",
-      is_unique_fn=lambda x: not is_prim_path_valid(x))
+    # cube_target_prim_path = find_unique_string_name(
+    #   initial_name="/World/envs/env_0/CubeTarget",
+    #   is_unique_fn=lambda x: not is_prim_path_valid(x))
+    cube_target_prim_path = "/World/envs/env_0/CubeTarget"
     cube_target_name = find_unique_string_name(
       initial_name="cube_target",
       is_unique_fn=lambda x: not self.scene.object_exists(x))
@@ -123,9 +151,10 @@ class Grasping(ABC, BaseTask):
     self._task_objects[cube_target_name] = cube_target
 
   def _add_cube_support(self, scene):
-    cube_support_prim_path = find_unique_string_name(
-      initial_name="/World/CubeSupport",
-      is_unique_fn=lambda x: not is_prim_path_valid(x))
+    cube_support_prim_path = "/World/envs/env_0/CubeSupport"
+    # cube_support_prim_path = find_unique_string_name(
+    #   initial_name="/World/envs/env_0/CubeSupport",
+    #   is_unique_fn=lambda x: not is_prim_path_valid(x))
     cube_support_name = find_unique_string_name(
       initial_name="cube_support",
       is_unique_fn=lambda x: not self.scene.object_exists(x))
@@ -146,11 +175,12 @@ class Grasping(ABC, BaseTask):
 
     stage = get_current_stage()
 
-    usd_path = "/World/kuka_allegro"
-    prim_path = find_unique_string_name(
-      initial_name=usd_path,
-      is_unique_fn=lambda x: not is_prim_path_valid(x))
-    prim_name = prim_path.replace(usd_path, "hand")
+    initial_prim_path = "/World/envs/env_0"
+    prim_path = initial_prim_path
+    # prim_path = find_unique_string_name(
+    #   initial_name=initial_prim_path,
+    #   is_unique_fn=lambda x: not is_prim_path_valid(x))
+    prim_name = prim_path.replace(initial_prim_path, "hand")
 
     hand_start_translation = np.array([-0.1, 0.0, 0.6])
     hand_start_orientation = (
@@ -179,7 +209,7 @@ class Grasping(ABC, BaseTask):
 
   def _add_static_camera(self):
     # Creates static camera
-    usd_path = "/World/camera"
+    usd_path = "/World/envs/env_0/camera"
     prim_path = find_unique_string_name(
       initial_name=usd_path,
       is_unique_fn=lambda x: not is_prim_path_valid(x))
@@ -212,7 +242,7 @@ class Grasping(ABC, BaseTask):
   def _add_hand_camera(self):
     # Creates in-hand camera
     # usd_path = "/World/kuka_allegro/kuka_allegro/palm_link/Camera",
-    usd_path = "/World/kuka_allegro/kuka_allegro/palm_link/Camera"
+    usd_path = "/World/envs/env_0/kuka_allegro/palm_link/Camera"
     prim_path = find_unique_string_name(
       initial_name=usd_path,
       is_unique_fn=lambda x: not is_prim_path_valid(x))

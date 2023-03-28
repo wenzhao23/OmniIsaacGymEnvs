@@ -33,10 +33,10 @@ import torch
 def create_hand(stage, hand_prim_path):
   """Creates a hand from USD, linked with an already constructed hand type.
   """
-  hand_start_translation = np.array([-0.1, 0.0, 0.6])
+  hand_start_translation = np.array([-0.05, 0.0, 0.4])
   hand_start_orientation = (
-    se3.Transform(rot=np.radians([0, 90, 0])) *  # 120
-    se3.Transform(rot=np.radians([0, 0, 140]))
+    se3.Transform(rot=np.radians([0, 105, 0])) *
+    se3.Transform(rot=np.radians([0, 0, 0]))
   ).quaternion
   hand = a_sample.ASample(
     prim_path=hand_prim_path,
@@ -90,7 +90,7 @@ def run():
     )
   cube_support = DynamicCuboid(
       name=f"cube_support",
-      position=np.array([0, 0, 0.3]),
+      position=np.array([0, 0, 0.15]),
       prim_path=f"/World/CubeSupport",
       scale=np.array([0.0515, 0.0515, 0.1015]),
       size=1.0,
@@ -100,7 +100,7 @@ def run():
   world.scene.add(cube_support)
   cube_lift = DynamicCuboid(
       name=f"cube_lift",
-      position=np.array([0, 0, 0.4]),
+      position=np.array([0, 0, 0.25]),
       prim_path=f"/World/CubeLift",
       scale=np.array([0.0515, 0.1515, 0.0515]),
       size=1.0,
@@ -143,26 +143,32 @@ def run():
   # hand_camera.set_vertical_aperture(1.52905)
   # hand_camera.set_clipping_range(0.01, 10000)
 
-  # # Creates contact sensors on the hand
-  # hand_base_prim_path = "/World/aSampleForearm/"
-  # contact_links = [
-  #   "index_biotac_tip", "middle_biotac_tip", "ring_biotac_tip", "thumb_biotac_tip",
-  #   "index_link_1", "index_link_2", "index_link_3",
-  #   "middle_link_1", "middle_link_2", "middle_link_3",
-  #   "ring_link_1", "ring_link_2", "ring_link_3",
-  #   "thumb_link_1", "thumb_link_2", "thumb_link_3"]
-  # hand_sensors = []
-  # for contact_link in contact_links: 
-  #   hand_sensors.append(world.scene.add(
-  #     ContactSensor(
-  #       prim_path=hand_base_prim_path + contact_link + "/contact_sensor",
-  #       name="contact_sensor_" + contact_link,
-  #       min_threshold=0,
-  #       max_threshold=10000000,
-  #       radius=0.01,
-  #     )
-  #   ))
-  #   hand_sensors[-1].add_raw_contact_data_to_frame()
+  # Creates contact sensors on the hand
+  hand_base_prim_path = "/World/aSampleForearm/aSampleForearm/"
+  contact_links = [
+    "Proximal_Asm__1",
+    "Medial_Distal_Asm__1",
+    "Proximal_Asm__4",
+    "Medial_Distal_Asm__4",
+    "Proximal_Asm__2",
+    "Medial_Distal_Asm__2",
+    "Proximal_Asm__3",
+    "Medial_Distal_Asm__3",
+    "Thumb_Proximal_2___Asm__1",
+    "Thumb_Medial_Distal_Link_2___Asm__1",
+  ]
+  hand_sensors = []
+  for contact_link in contact_links: 
+    hand_sensors.append(world.scene.add(
+      ContactSensor(
+        prim_path=hand_base_prim_path + contact_link + "/contact_sensor",
+        name="contact_sensor_" + contact_link,
+        min_threshold=0,
+        max_threshold=10000000,
+        radius=0.01,
+      )
+    ))
+    hand_sensors[-1].add_raw_contact_data_to_frame()
 
   # # Inspects all hand joints
   # for prim in stage.TraverseAll():
@@ -224,13 +230,7 @@ def run():
     
     # Intializes the hand joint command
     command = [0] * 18
-    command[thumb_joint_0_index] = np.radians(-90.0)
 
-    # Sends hand joint commands
-    hand_view.set_joint_position_targets(
-      command
-    )
-    continue
     if grasped:
 
       if not retracting:
@@ -288,38 +288,38 @@ def run():
     target_object = "/World/CubeLift"
     world_t_target = cube_lift.get_world_pose()
 
-    # for hs in hand_sensors:
+    for hs in hand_sensors:
 
-    #   # [(position, normal)]
-    #   contact_vecs = []      
-    #   frame = hs.get_current_frame()
+      # [(position, normal)]
+      contact_vecs = []      
+      frame = hs.get_current_frame()
 
-    #   # Only grabs the contacts with the target object
-    #   for contact in frame["contacts"]:
-    #     if contact["body0"] == target_object:
-    #       hand_contact = contact["body1"]
-    #     elif contact["body1"] == target_object:
-    #       print("TARGET OBJECT IS BODY1!")
-    #       hand_contact = contact["body0"]
-    #     else:
-    #       continue
-    #     link_name = hand_contact.split("/")[-1]
+      # Only grabs the contacts with the target object
+      for contact in frame["contacts"]:
+        if contact["body0"] == target_object:
+          hand_contact = contact["body1"]
+        elif contact["body1"] == target_object:
+          print("TARGET OBJECT IS BODY1!")
+          hand_contact = contact["body0"]
+        else:
+          continue
+        link_name = hand_contact.split("/")[-1]
 
-    #     world_t_link = se3.Transform()
-    #     contact_vecs.append(
-    #       (geometry_utils.transform_points(contact["position"].reshape(3, 1),
-    #                                        world_t_link),
-    #       geometry_utils.rotate_points(contact["normal"].reshape(3, 1),
-    #                                    world_t_link)),
-    #     )
-    #   all_contact_vecs.append(contact_vecs)
+        world_t_link = se3.Transform()
+        contact_vecs.append(
+          (geometry_utils.transform_points(contact["position"].reshape(3, 1),
+                                           world_t_link),
+          geometry_utils.rotate_points(contact["normal"].reshape(3, 1),
+                                       world_t_link)),
+        )
+      all_contact_vecs.append(contact_vecs)
 
-    #   # print(frame)
-    # contact_trajectory.append(all_contact_vecs)
+      print(frame)
+    contact_trajectory.append(all_contact_vecs)
 
-    # # TOOD: this is a hack determining contact state depending on the average number of contacts
-    # num_contacts = [len(hand_sensor.get_current_frame()["contacts"])
-    #         for hand_sensor in hand_sensors]
+    # TOOD: this is a hack determining contact state depending on the average number of contacts
+    num_contacts = [len(hand_sensor.get_current_frame()["contacts"])
+            for hand_sensor in hand_sensors]
     num_contacts = [1]
     if in_contact:
 
@@ -342,8 +342,8 @@ def run():
     #   hand_view._physics_view.get_force_sensor_forces()[0, :, :], axis=1))
 
     time_elapsed = time.time() - start_time
-    # time_trajectory.append(frame["time"])
-    # target_trajectory.append(world_t_target)
+    time_trajectory.append(frame["time"])
+    target_trajectory.append(world_t_target)
     print('-' * 30)
 
   # Saves the contact trajectory

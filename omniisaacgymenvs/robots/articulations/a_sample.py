@@ -50,8 +50,7 @@ class ASample(Robot):
     def set_shadow_hand_properties(self, stage, hand_prim):
         hand_prim = get_prim_at_path("/World/aSampleForearm/aSampleForearm")
         for link_prim in hand_prim.GetChildren():
-            print(link_prim)
-            if link_prim.HasAPI(PhysxSchema.PhysxRigidBodyAPI): 
+            if link_prim.HasAPI(PhysxSchema.PhysxRigidBodyAPI):
                 rb = PhysxSchema.PhysxRigidBodyAPI.Get(stage, link_prim.GetPrimPath())
                 rb.GetDisableGravityAttr().Set(True)
                 rb.GetRetainAccelerationsAttr().Set(True)

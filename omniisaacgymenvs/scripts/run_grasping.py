@@ -8,7 +8,7 @@ from typing import Any, Mapping
 
 import numpy as np
 from omni.isaac.core import World
-from omniisaacgymenvs.tasks import grasping
+from omniisaacgymenvs.tasks import grasping_allegro
 
 
 def run():
@@ -30,7 +30,7 @@ def run():
   for i in range (rows):
     for j in range(cols):
       task_index += 1
-      tasks.append(grasping.Grasping(
+      tasks.append(grasping_allegro.Grasping(
         f"grasping_{task_index:03d}",
         world,
         offset=spacing * np.array([i - int(rows / 2), j - int(cols / 2) , 0])))

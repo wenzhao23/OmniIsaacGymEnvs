@@ -27,7 +27,7 @@ class ASample(Robot):
 
         assets_root_path = get_assets_root_path()
         assets_user_path = assets_root_path + "/../../../../my_data"
-        self._usd_path = assets_user_path + "/hand/a_sample_flatten.usd"
+        self._usd_path = assets_user_path + "/hand/a_sample_v3.usd"
 
         self._position = torch.tensor([0.0, 0.0, 0.0]) if translation is None else translation
         self._orientation = torch.tensor([1.0, 0.0, 0.0, 0.0]) if orientation is None else orientation

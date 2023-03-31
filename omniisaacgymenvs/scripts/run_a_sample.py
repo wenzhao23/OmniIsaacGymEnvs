@@ -33,9 +33,9 @@ import torch
 def create_hand(stage, hand_prim_path):
   """Creates a hand from USD, linked with an already constructed hand type.
   """
-  hand_start_translation = np.array([-0.05, 0.0, 0.4])
+  hand_start_translation = np.array([-0.14, 0.0, 0.45])
   hand_start_orientation = (
-    se3.Transform(rot=np.radians([0, 105, 0])) *
+    se3.Transform(rot=np.radians([0, 95, 0])) *
     se3.Transform(rot=np.radians([0, 0, 0]))
   ).quaternion
   hand = a_sample.ASample(
@@ -163,7 +163,7 @@ def run():
       ContactSensor(
         prim_path=hand_base_prim_path + contact_link + "/contact_sensor",
         name="contact_sensor_" + contact_link,
-        min_threshold=0,
+        min_threshold=0.01,
         max_threshold=10000000,
         radius=0.01,
       )
@@ -204,7 +204,7 @@ def run():
   # Hardcodes a few constants to manually set the grasp/retract/contact behavior
   grasp_duration = 5.0
   retract_duration = 3.0
-  close_time = 5.0
+  close_time = 3.0
 
   # TODO: organize to state machine to replace these state flags
   in_contact = False
@@ -221,6 +221,15 @@ def run():
   while simulation_app.is_running() and time_elapsed < 12:
 
     world.step(render=True)
+
+    # Prepares for recording
+    if time.time() - wait_for_recording < 3:
+      world.step(render=True)
+      continue
+    if tmp:
+      start_time = time.time()
+      tmp = False
+
     # print(hand_camera.get_current_frame())
     # if time_elapsed > 1.0 and tmp:
     #   from matplotlib import pyplot as plt
@@ -263,8 +272,10 @@ def run():
       # TODO: this is a hack, when finger starts closing can be determined by a preshape
       # including a palm pose and finger initial configurations
       if time_elapsed > close_time:
-        for i, index in enumerate(finger_indices):
-          command[index] = -0.3 * (time_elapsed - close_time)
+        for i, index in enumerate(finger_indices[3:]):
+          command[index] = -1.57 / 3.0 * (time_elapsed - close_time)
+        for i, index in enumerate(finger_indices[:2]):
+          command[index] = -1.57 / 9.0 * (time_elapsed - close_time)
 
     # Hardcodes the thumb to be roughly antipodal
     command[thumb_joint_0_index] = np.radians(-90.0)
@@ -314,21 +325,19 @@ def run():
         )
       all_contact_vecs.append(contact_vecs)
 
-      print(frame)
+      # print(frame["contacts"])
     contact_trajectory.append(all_contact_vecs)
 
     # TOOD: this is a hack determining contact state depending on the average number of contacts
-    num_contacts = [len(hand_sensor.get_current_frame()["contacts"])
-            for hand_sensor in hand_sensors]
-    num_contacts = [1]
+    num_contacts = [len(con) for con in all_contact_vecs]
     if in_contact:
 
       # Hardcodes continuing closing fingers for 5.0 seconds after in_contact
-      if time_elapsed - time_in_contact > 5.0:
+      if time_elapsed - time_in_contact > 1.1:
         grasped = True
 
     else:
-      if np.mean(num_contacts) > 3:
+      if np.mean(num_contacts) > 0.9:
         in_contact = True
         print("-" * 10 + "in_contact")
         time_in_contact = time_elapsed

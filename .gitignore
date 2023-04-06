@@ -4,4 +4,4 @@ runs
 omniisaacgymenvs.egg-info/
 checkpoints
 omniisaacgymenvs/wandb
-*/.ipynb_checkpoints/*
+.ipynb_checkpoints
